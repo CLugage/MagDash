@@ -5,6 +5,8 @@ const passport = require('passport');
 const bodyParser = require('body-parser');
 const flash = require('connect-flash');
 const path = require('path');
+const LocalStrategy = require('passport-local').Strategy;
+
 
 const User = require('./models/User');
 const Container = require('./models/Container');
