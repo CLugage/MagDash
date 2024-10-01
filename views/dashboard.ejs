@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+<div class="container mx-auto p-5">
+    <h1 class="text-3xl font-bold">Your Containers</h1>
+    <table class="min-w-full mt-4 bg-white border border-gray-200">
+        <thead>
+            <tr>
+                <th class="py-2 px-4 border-b">VMID</th>
+                <th class="py-2 px-4 border-b">Name</th>
+                <th class="py-2 px-4 border-b">Status</th>
+                <th class="py-2 px-4 border-b">Password</th>
+                <th class="py-2 px-4 border-b">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% containers.forEach(container => { %>
+                <tr>
+                    <td class="py-2 px-4 border-b"><%= container.vmid %></td>
+                    <td class="py-2 px-4 border-b"><%= container.name %></td>
+                    <td class="py-2 px-4 border-b"><%= container.status %></td>
+                    <td class="py-2 px-4 border-b"><%= container.password %></td>
+                    <td class="py-2 px-4 border-b">
+                        <form action="/containers/start/<%= container.vmid %>" method="POST" class="inline">
+                            <button type="submit" class="bg-blue-500 text-white py-1 px-3 rounded">Start</button>
+                        </form>
+                        <form action="/containers/stop/<%= container.vmid %>" method="POST" class="inline">
+                            <button type="submit" class="bg-red-500 text-white py-1 px-3 rounded">Stop</button>
+                        </form>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

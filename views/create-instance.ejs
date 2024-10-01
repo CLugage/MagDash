@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Create Instance - Proxmox Panel</title>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <div class="relative flex items-center justify-between h-16">
+                <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-lg font-bold">Proxmox Management Panel</h1>
+                    </div>
+                </div>
+                <div class="ml-10 flex items-baseline space-x-4">
+                    <form action="/logout" method="POST">
+                        <button class="text-gray-900 hover:bg-gray-200 px-3 py-2 rounded-md text-sm font-medium">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <main class="max-w-7xl mx-auto p-6">
+        <h2 class="text-2xl font-bold mb-4">Create New Instance</h2>
+        <form action="/containers" method="POST">
+            <div class="mb-4">
+                <label for="vmid" class="block text-sm font-medium text-gray-700">VMID</label>
+                <input type="number" id="vmid" name="vmid" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="name" class="block text-sm font-medium text-gray-700">Container Name</label>
+                <input type="text" id="name" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="memory" class="block text-sm font-medium text-gray-700">Memory (MB)</label>
+                <input type="number" id="memory" name="memory" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="cores" class="block text-sm font-medium text-gray-700">Cores</label>
+                <input type="number" id="cores" name="cores" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="template" class="block text-sm font-medium text-gray-700">Template</label>
+                <input type="text" id="template" name="template" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Create Instance
+            </button>
+        </form>
+    </main>
+</body>
+</html>

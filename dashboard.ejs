@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Proxmox Panel - Dashboard</title>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <div class="relative flex items-center justify-between h-16">
+                <div class="absolute inset-y-0 left-0 flex items-center sm:hidden">
+                    <!-- Mobile menu button-->
+                </div>
+                <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-lg font-bold">Proxmox Management Panel</h1>
+                    </div>
+                </div>
+                <div class="ml-10 flex items-baseline space-x-4">
+                    <form action="/logout" method="POST">
+                        <button class="text-gray-900 hover:bg-gray-200 px-3 py-2 rounded-md text-sm font-medium">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <main class="max-w-7xl mx-auto p-6">
+        <h2 class="text-2xl font-bold mb-4">Welcome, <%= user.username %>!</h2>
+        <h3 class="text-xl font-semibold mb-2">Your LXC Containers:</h3>
+        <div class="bg-white shadow-md rounded-lg p-4">
+            <% if (containers.length > 0) { %>
+                <ul class="space-y-2">
+                    <% containers.forEach(container => { %>
+                        <li class="p-4 bg-gray-100 rounded-md">
+                            <h4 class="font-bold">Container Name: <%= container.name %></h4>
+                            <p>VMID: <%= container.vmid %></p>
+                            <p>Memory: <%= container.memory %> MB</p>
+                            <p>Cores: <%= container.cores %></p>
+                            <p>Network: <%= container.net0 %></p>
+                        </li>
+                    <% }) %>
+                </ul>
+            <% } else { %>
+                <p>You have no containers yet. Create one below:</p>
+            <% } %>
+        </div>
+        
+        <h3 class="text-xl font-semibold mt-6 mb-2">Create a New LXC Container:</h3>
+        <form action="/containers" method="POST" class="bg-white shadow-md rounded-lg p-4">
+            <div class="mb-4">
+                <label for="vmid" class="block text-sm font-medium text-gray-700">VMID</label>
+                <input type="number" id="vmid" name="vmid" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="name" class="block text-sm font-medium text-gray-700">Container Name</label>
+                <input type="text" id="name" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="memory" class="block text-sm font-medium text-gray-700">Memory (MB)</label>
+                <input type="number" id="memory" name="memory" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="cores" class="block text-sm font-medium text-gray-700">Cores</label>
+                <input type="number" id="cores" name="cores" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <div class="mb-4">
+                <label for="net0" class="block text-sm font-medium text-gray-700">Network Interface</label>
+                <input type="text" id="net0" name="net0" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500" />
+            </div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Create Container
+            </button>
+        </form>
+    </main>
+</body>
+</html>
