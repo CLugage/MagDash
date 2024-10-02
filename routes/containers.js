@@ -120,9 +120,15 @@ const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0,
 // Handle fetching containers for the logged-in user
 router.get('/', async (req, res) => {
     try {
+        // Fetch containers associated with the logged-in user
         const containers = await Container.find({ userId: req.user._id });
-        // Ensure plans is included when rendering the dashboard
-        res.render('dashboard', { containers, osTemplates: config.templates, plans: config.plans }); // Make sure plans are included
+        
+        // Render the dashboard and include containers, OS templates, and plans
+        res.render('dashboard', {
+            containers,
+            osTemplates: config.templates,
+            plans: config.plans // Include plans in the rendering
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Error fetching containers');
