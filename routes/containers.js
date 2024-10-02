@@ -6,6 +6,19 @@ const { exec } = require('child_process');
 
 const router = express.Router();
 
+
+const getNextVMID = async () => {
+    const containers = await Container.find();
+    const usedVMIDs = containers.map(container => container.vmid);
+
+    let nextVMID = 100; // Start from 100
+    while (usedVMIDs.includes(nextVMID)) {
+        nextVMID++;
+    }
+    return nextVMID;
+};
+
+
 // Function to get the next available IP address
 const getNextIP = async () => {
     const containers = await Container.find();
@@ -19,6 +32,25 @@ const getNextIP = async () => {
     }
     return nextIP; // Return the next available IP address
 };
+
+// Function to get OS templates from Proxmox
+const getOSTemplates = async () => {
+    try {
+        const response = await axios.get(`${process.env.PROXMOX_URL}/nodes/YOUR_NODE/storage/local/content`, {
+            params: { content: 'vztmpl' },
+            auth: {
+                username: process.env.PROXMOX_USER,
+                password: process.env.PROXMOX_PASSWORD,
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
+        });
+        return response.data.data.map(template => template.volid);
+    } catch (error) {
+        console.error('Error fetching OS templates:', error);
+        return [];
+    }
+};
+
 
 // Function to generate and run NAT scripts
 const createAndRunNATScript = (container) => {
@@ -43,9 +75,33 @@ iptables -A FORWARD -p tcp -d 10.10.10.${ip} --dport ${port} -j ACCEPT
 };
 
 // Handle creating a new LXC container
-// Handle creating a new LXC container
 router.post('/', async (req, res) => {
-    const { vmid, name, memory, cores, template } = req.body;
+    const { name, template, plan } = req.body;
+
+    // Get next VMID
+    const vmid = await getNextVMID();
+
+    // Set memory, cores, and disk space based on selected plan
+    let memory, cores, disk;
+    switch (plan) {
+        case 'basic':
+            memory = 512; // MB
+            cores = 1;
+            disk = 8; // GB
+            break;
+        case 'standard':
+            memory = 1024; // MB
+            cores = 2;
+            disk = 20; // GB
+            break;
+        case 'premium':
+            memory = 2048; // MB
+            cores = 4;
+            disk = 50; // GB
+            break;
+        default:
+            return res.status(400).send('Invalid plan selected');
+    }
 
     // Generate a random SSH port between 2000 and 60000
     const randomPort = Math.floor(Math.random() * (60000 - 2000 + 1)) + 2000;
@@ -62,6 +118,7 @@ router.post('/', async (req, res) => {
         name,
         memory,
         cores,
+        disk, // Store disk size
         net0,
         template,
         userId: req.user._id,
@@ -70,16 +127,10 @@ router.post('/', async (req, res) => {
 
     try {
         await newContainer.save(); // Save container to MongoDB
-        // Create the container on Proxmox
-        await createContainerOnProxmox({ vmid, name, memory, cores, net0, template, containerPassword });
-
-        // Create and run NAT script for the container
+        await createContainerOnProxmox({ vmid, name, memory, cores, disk, net0, template, containerPassword }); // Pass disk to the creation function
         createAndRunNATScript(newContainer);
-
-        // Add SSH configuration (if needed)
         await updateSSHDConfig(newContainer);
-
-        res.redirect('/dashboard'); // Redirect to the dashboard after creation
+        res.redirect('/dashboard');
     } catch (error) {
         console.error(error);
         res.status(500).send('Error creating container');
@@ -88,42 +139,30 @@ router.post('/', async (req, res) => {
 
 
 // Function to create a container on Proxmox with password
-const createContainerOnProxmox = async (containerData) => {
-    const { vmid, name, memory, cores, net0, template, containerPassword } = containerData;
-
-    try {
-        const response = await axios.post(`${process.env.PROXMOX_URL}/nodes/YOUR_NODE/lxc`, {
-            vmid,
-            hostname: name,
-            memory,
-            cores,
-            net0,
-            ostemplate: template,
-            password: containerPassword,
-        }, {
-            auth: {
-                username: process.env.PROXMOX_USER,
-                password: process.env.PROXMOX_PASSWORD,
-            },
-            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error creating container:', error);
-        throw new Error('Error creating container on Proxmox');
-    }
+const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
+    const createCommand = `qm create ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
+    exec(createCommand, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error creating container: ${stderr}`);
+            return;
+        }
+        console.log(`Container created: ${stdout}`);
+    });
 };
+
 
 // Handle fetching containers for the logged-in user
 router.get('/', async (req, res) => {
     try {
         const containers = await Container.find({ userId: req.user._id });
-        res.render('dashboard', { containers });
+        const templates = await getOSTemplates(); // Fetch OS templates
+        res.render('dashboard', { containers, templates });
     } catch (error) {
         console.error(error);
         res.status(500).send('Error fetching containers');
     }
 });
+
 
 // Function to update SSH configuration
 const updateSSHDConfig = async (container) => {
