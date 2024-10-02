@@ -36,16 +36,22 @@ app.use(passport.session());
 app.use(flash());
 
 // Passport config
-passport.use(new LocalStrategy((username, password, done) => {
-    User.findOne({ username }, (err, user) => {
-        if (err) return done(err);
-        if (!user) return done(null, false, { message: 'Incorrect username.' });
-        bcrypt.compare(password, user.password, (err, res) => {
-            if (res) return done(null, user);
-            else return done(null, false, { message: 'Incorrect password.' });
-        });
-    });
+passport.use(new LocalStrategy(async (username, password, done) => {
+    try {
+        const user = await User.findOne({ username: username }); // Use async/await instead of callback
+        if (!user) {
+            return done(null, false, { message: 'Incorrect username.' });
+        }
+        const isPasswordValid = await user.verifyPassword(password); // Assuming `verifyPassword` is a method in your model
+        if (!isPasswordValid) {
+            return done(null, false, { message: 'Incorrect password.' });
+        }
+        return done(null, user);
+    } catch (err) {
+        return done(err);
+    }
 }));
+
 
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => {
