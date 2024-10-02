@@ -12,6 +12,7 @@ const User = require('./models/User');
 const Container = require('./models/Container');
 const authRoutes = require('./routes/auth');
 const containerRoutes = require('./routes/containers');
+const config = require('config.json')
 
 const app = express();
 
@@ -106,7 +107,11 @@ app.get('/dashboard', async (req, res) => {
     
     try {
         const containers = await Container.find({ userId: req.user._id }); // Fetch containers for the logged-in user
-        res.render('dashboard', { containers });
+        res.render('dashboard', { 
+            containers, 
+            osTemplates: config.templates, // Pass OS templates
+            plans: config.plans // Pass plans
+        });
     } catch (err) {
         console.error(err);
         res.status(500).send('Error fetching containers');
