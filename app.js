@@ -12,7 +12,7 @@ const User = require('./models/User');
 const Container = require('./models/Container');
 const authRoutes = require('./routes/auth');
 const containerRoutes = require('./routes/containers');
-const config = require('config.json')
+const config = require('./config.json')
 
 const app = express();
 
