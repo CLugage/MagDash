@@ -116,17 +116,17 @@ const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0,
         console.log(`Container created: ${stdout}`);
     });
 };
-
 // Handle fetching containers for the logged-in user
 router.get('/', async (req, res) => {
     try {
         const containers = await Container.find({ userId: req.user._id });
-        res.render('dashboard', { containers, osTemplates }); // Pass predefined OS templates to the dashboard
+        res.render('dashboard', { containers, osTemplates, plans }); // Pass plans to the dashboard
     } catch (error) {
         console.error(error);
         res.status(500).send('Error fetching containers');
     }
 });
+
 
 // Function to update SSH configuration
 const updateSSHDConfig = async (container) => {
