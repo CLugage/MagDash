@@ -2,24 +2,13 @@ const express = require('express');
 const Container = require('../models/Container');
 const generateRandomPassword = require('../utils/generatePassword');
 const { exec } = require('child_process');
+const config = require('../config.json'); // Import config.json
 
 const router = express.Router();
 
-// Predefined OS templates
-const osTemplates = [
-    {
-        name: 'Ubuntu 22.04',
-        template: 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.gz'
-    },
-    {
-        name: 'Debian 11',
-        template: 'local:vztmpl/debian-11-standard_11-1_amd64.tar.gz'
-    },
-    {
-        name: 'CentOS 8',
-        template: 'local:vztmpl/centos-8-standard_8-2_amd64.tar.gz'
-    }
-];
+// Extract templates and plans from config
+const osTemplates = config.templates;
+const plans = config.plans;
 
 // Function to get the next available VMID
 const getNextVMID = async () => {
@@ -40,7 +29,7 @@ const getNextIP = async () => {
         return parseInt(container.net0.split('.')[3]);
     });
 
-    let nextIP = 3; // Start from 10.10.10.3
+    let nextIP = config.network.startFromIP; // Start from configured IP
     while (usedIPs.includes(nextIP)) {
         nextIP++;
     }
@@ -55,12 +44,12 @@ const createAndRunNATScript = (container) => {
 
     const natScript = `
 # NAT for container ${vmid}
-iptables -t nat -A PREROUTING -p tcp -d 10.10.10.${ip} --dport ${port} -j DNAT --to-destination 10.10.10.${ip}:${port}
-iptables -A FORWARD -p tcp -d 10.10.10.${ip} --dport ${port} -j ACCEPT
+iptables -t nat -A PREROUTING -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j DNAT --to-destination ${config.network.baseIP}${ip}:${port}
+iptables -A FORWARD -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j ACCEPT
 `;
 
     // Save NAT script to a file and execute it
-    exec(`echo "${natScript}" > /etc/iptables/nat-${vmid}.sh && chmod +x /etc/iptables/nat-${vmid}.sh && /etc/iptables/nat-${vmid}.sh`, (error) => {
+    exec(`echo "${natScript}" > ${config.proxmox.natScriptPath}${vmid}.sh && chmod +x ${config.proxmox.natScriptPath}${vmid}.sh && ${config.proxmox.natScriptPath}${vmid}.sh`, (error) => {
         if (error) {
             console.error(`Error creating or running NAT script: ${error}`);
         } else {
@@ -77,33 +66,17 @@ router.post('/', async (req, res) => {
     const vmid = await getNextVMID();
 
     // Set memory, cores, and disk space based on selected plan
-    let memory, cores, disk;
-    switch (plan) {
-        case 'basic':
-            memory = 512; // MB
-            cores = 1;
-            disk = 8; // GB
-            break;
-        case 'standard':
-            memory = 1024; // MB
-            cores = 2;
-            disk = 20; // GB
-            break;
-        case 'premium':
-            memory = 2048; // MB
-            cores = 4;
-            disk = 50; // GB
-            break;
-        default:
-            return res.status(400).send('Invalid plan selected');
-    }
+    const planConfig = plans[plan];
+    if (!planConfig) return res.status(400).send('Invalid plan selected');
 
-    // Generate a random SSH port between 2000 and 60000
-    const randomPort = Math.floor(Math.random() * (60000 - 2000 + 1)) + 2000;
+    const { memory, cores, disk } = planConfig;
+
+    // Generate a random SSH port within configured range
+    const randomPort = Math.floor(Math.random() * (config.ssh.portRange.max - config.ssh.portRange.min + 1)) + config.ssh.portRange.min;
 
     // Get the next available IP address
     const nextIP = await getNextIP();
-    const net0 = `name=eth0,bridge=vmbr1,ip=10.10.10.${nextIP},port=${randomPort}`;
+    const net0 = `name=eth0,bridge=vmbr1,ip=${config.network.baseIP}${nextIP},port=${randomPort}`;
 
     // Generate a random password for the container
     const containerPassword = generateRandomPassword();
@@ -134,7 +107,7 @@ router.post('/', async (req, res) => {
 
 // Function to create a container on Proxmox with password
 const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
-    const createCommand = `qm create ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
+    const createCommand = `${config.proxmox.createCommand} ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
     exec(createCommand, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error creating container: ${stderr}`);
@@ -179,7 +152,7 @@ router.post('/:id/start', async (req, res) => {
     const { id } = req.params;
 
     try {
-        exec(`pct start ${id}`, (error, stdout, stderr) => {
+        exec(`${config.proxmox.startCommand} ${id}`, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error starting container: ${error}`);
                 return res.status(500).send('Error starting container');
@@ -198,7 +171,7 @@ router.post('/:id/stop', async (req, res) => {
     const { id } = req.params;
 
     try {
-        exec(`pct stop ${id}`, (error, stdout, stderr) => {
+        exec(`${config.proxmox.stopCommand} ${id}`, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error stopping container: ${error}`);
                 return res.status(500).send('Error stopping container');
