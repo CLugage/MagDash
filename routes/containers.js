@@ -1,7 +1,7 @@
 const express = require('express');
 const Container = require('../models/Container');
 const generateRandomPassword = require('../utils/generatePassword');
-const { exec } = require('child_process');
+const axios = require('axios'); // Use axios to make HTTP requests to the Proxmox API
 const config = require('../config.json'); // Import config.json
 
 const router = express.Router();
@@ -10,6 +10,14 @@ const router = express.Router();
 const osTemplates = config.templates;
 const plans = config.plans;
 
+// Set up Axios instance for Proxmox API
+const proxmoxApi = axios.create({
+    baseURL: `https://${config.proxmox.host}:8006/api2/json`,
+    headers: {
+        'Authorization': `PVEAPIToken=${config.proxmox.apiToken}`, // Use your API token for authorization
+        'Content-Type': 'application/json',
+    },
+});
 
 // Function to get the next available VMID
 const getNextVMID = async () => {
@@ -87,7 +95,7 @@ router.post('/', async (req, res) => {
         name,
         memory,
         cores,
-        disk, // Store disk size
+        disk,
         net0,
         template,
         userId: req.user._id,
@@ -96,7 +104,7 @@ router.post('/', async (req, res) => {
 
     try {
         await newContainer.save(); // Save container to MongoDB
-        await createContainerOnProxmox({ vmid, name, memory, cores, disk, net0, template, containerPassword }); // Pass disk to the creation function
+        await createContainerOnProxmox({ vmid, name, memory, cores, disk, net0, template, containerPassword });
         createAndRunNATScript(newContainer);
         await updateSSHDConfig(newContainer);
         res.redirect('/dashboard');
@@ -106,23 +114,30 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Function to create a container on Proxmox with password
-
 // Function to create a container on Proxmox
 const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
-    const createCommand = `${config.proxmox.createCommand} ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk}`;
-    
-    try {
-        // Create the container without the password
-        const result = await execAsync(createCommand);
-        console.log(`Container created: ${result}`);
+    const createCommand = {
+        vmid,
+        name,
+        memory,
+        cores,
+        net0,
+        ostemplate: template,
+        rootfs: `local:${disk}`,
+        password: containerPassword // Pass password directly
+    };
 
-        // Set the password using pct set
-        const passwordCommand = `pct set ${vmid} --password ${containerPassword}`;
-        await execAsync(passwordCommand);
+    try {
+        // Create the container using Proxmox API
+        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc`, createCommand);
+        console.log(`Container created: ${vmid}`);
+
+        // Set the password using pct set (if needed, but we already set it during creation)
+        // const passwordCommand = `pct set ${vmid} --password ${containerPassword}`;
+        // await execAsync(passwordCommand);
         console.log(`Password set for container ${vmid}`);
     } catch (error) {
-        console.error(`Error creating container: ${error}`);
+        console.error(`Error creating container: ${error.response ? error.response.data : error.message}`);
     }
 };
 
@@ -144,25 +159,27 @@ router.get('/', async (req, res) => {
     }
 });
 
-
-
 // Function to update SSH configuration
 const updateSSHDConfig = async (container) => {
     const { vmid, password } = container;
 
-    const command = `
-        pct set ${vmid} --password ${password} &&
-        pct exec ${vmid} -- bash -c "sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config" &&
-        pct exec ${vmid} -- systemctl restart sshd
-    `;
+    try {
+        const command = {
+            password,
+            sshd: {
+                PermitRootLogin: 'yes' // Enable root login
+            }
+        };
 
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error updating SSHD config: ${error}`);
-            return;
-        }
-        console.log(`SSHD config updated for container ${vmid}: ${stdout}`);
-    });
+        // Update the SSH configuration via pct exec (if required)
+        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${vmid}/exec`, {
+            command: `bash -c "sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config && systemctl restart sshd"`,
+        });
+
+        console.log(`SSHD config updated for container ${vmid}`);
+    } catch (error) {
+        console.error(`Error updating SSHD config: ${error.response ? error.response.data : error.message}`);
+    }
 };
 
 // Handle starting a container
@@ -170,16 +187,11 @@ router.post('/:id/start', async (req, res) => {
     const { id } = req.params;
 
     try {
-        exec(`${config.proxmox.startCommand} ${id}`, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error starting container: ${error}`);
-                return res.status(500).send('Error starting container');
-            }
-            console.log(`Container ${id} started: ${stdout}`);
-            res.redirect('/dashboard');
-        });
+        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${id}/status/start`);
+        console.log(`Container ${id} started`);
+        res.redirect('/dashboard');
     } catch (error) {
-        console.error(error);
+        console.error(`Error starting container: ${error.response ? error.response.data : error.message}`);
         res.status(500).send('Error starting container');
     }
 });
@@ -189,16 +201,11 @@ router.post('/:id/stop', async (req, res) => {
     const { id } = req.params;
 
     try {
-        exec(`${config.proxmox.stopCommand} ${id}`, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error stopping container: ${error}`);
-                return res.status(500).send('Error stopping container');
-            }
-            console.log(`Container ${id} stopped: ${stdout}`);
-            res.redirect('/dashboard');
-        });
+        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${id}/status/stop`);
+        console.log(`Container ${id} stopped`);
+        res.redirect('/dashboard');
     } catch (error) {
-        console.error(error);
+        console.error(`Error stopping container: ${error.response ? error.response.data : error.message}`);
         res.status(500).send('Error stopping container');
     }
 });
