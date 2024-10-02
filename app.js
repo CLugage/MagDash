@@ -36,38 +36,50 @@ app.use(passport.session());
 app.use(flash());
 
 // Passport config
+
+// Configure the LocalStrategy
 passport.use(new LocalStrategy(async (username, password, done) => {
     try {
-        const user = await User.findOne({ username: username }); // Use async/await instead of callback
+        // Find the user by username (assuming username is unique)
+        const user = await User.findOne({ username });
+
+        // If no user is found, return an error
         if (!user) {
             return done(null, false, { message: 'Incorrect username.' });
         }
-        const isPasswordValid = await user.verifyPassword(password); // Assuming `verifyPassword` is a method in your model
-        if (!isPasswordValid) {
+
+        // Verify the password (ensure you have a function like user.verifyPassword)
+        const isMatch = await user.verifyPassword(password);
+
+        // If the password does not match, return an error
+        if (!isMatch) {
             return done(null, false, { message: 'Incorrect password.' });
         }
+
+        // If everything is correct, return the user
         return done(null, user);
     } catch (err) {
         return done(err);
     }
 }));
 
-
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => {
-    User.findById(id, (err, user) => {
-        done(err, user);
-    });
+// Serialize the user into the session
+passport.serializeUser((user, done) => {
+    done(null, user._id); // Only store the user's ID in the session
 });
 
+// Deserialize the user from the session
 passport.deserializeUser(async (id, done) => {
     try {
-        const user = await User.findById(id);
-        done(null, user);
+        const user = await User.findById(id); // Fetch user by ID
+        done(null, user); // Attach user to the request object (req.user)
     } catch (err) {
         done(err);
     }
 });
+
+module.exports = passport;
+
 
 
 // View engine
