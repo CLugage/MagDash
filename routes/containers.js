@@ -36,7 +36,7 @@ const getNextIP = async () => {
 // Function to get OS templates from Proxmox
 const getOSTemplates = async () => {
     try {
-        const response = await axios.get(`${process.env.PROXMOX_URL}/nodes/YOUR_NODE/storage/local/content`, {
+        const response = await axios.get(`PROXMOX_URL/nodes/YOUR_NODE/storage/local/content`, {
             params: { content: 'vztmpl' },
             auth: {
                 username: process.env.PROXMOX_USER,
@@ -47,9 +47,10 @@ const getOSTemplates = async () => {
         return response.data.data.map(template => template.volid);
     } catch (error) {
         console.error('Error fetching OS templates:', error);
-        return [];
+        return [];  // Return an empty array on error
     }
 };
+
 
 
 // Function to generate and run NAT scripts
@@ -152,16 +153,22 @@ const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0,
 
 
 // Handle fetching containers for the logged-in user
+// Route to render the dashboard and pass OS templates
 router.get('/', async (req, res) => {
     try {
         const containers = await Container.find({ userId: req.user._id });
         const templates = await getOSTemplates(); // Fetch OS templates
-        res.render('dashboard', { containers, templates });
+        // Check if templates are fetched
+        if (!templates.length) {
+            console.error("No templates found");
+        }
+        res.render('dashboard', { containers, templates }); // Ensure templates are passed
     } catch (error) {
         console.error(error);
         res.status(500).send('Error fetching containers');
     }
 });
+
 
 
 // Function to update SSH configuration
