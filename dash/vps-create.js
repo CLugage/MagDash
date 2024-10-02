@@ -38,7 +38,7 @@ async function handle(req, res) {
     sshPort.intPort = 22;
     await sshPort.save();
 
-    let ip = randomip('10.6.0.0', 16);
+    let ip = randomip('10.10.10.0', 24);
 
     const proxID = node.nextID;
     node.nextID++;
