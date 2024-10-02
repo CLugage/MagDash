@@ -99,14 +99,18 @@ app.get('/', (req, res) => {
 });
 
 // Dashboard route
-app.get('/dashboard', (req, res) => {
+app.get('/dashboard', async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect('/login');
     }
-    Container.find({ userId: req.user._id }, (err, containers) => {
-        if (err) return res.status(500).send('Error fetching containers');
+    
+    try {
+        const containers = await Container.find({ userId: req.user._id }); // Fetch containers for the logged-in user
         res.render('dashboard', { containers });
-    });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error fetching containers');
+    }
 });
 
 // Start server
