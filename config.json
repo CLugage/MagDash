@@ -2,7 +2,7 @@
     "proxmox": {
         "host": "your-proxmox-host-ip", 
         "node": "your-proxmox-node", 
-        "username": "your-username@pam", // e.g., "root@pam"
+        "username": "your-username@pam", 
         "password": "your-password", 
         "createCommand": "pct create",
         "startCommand": "pct start",
