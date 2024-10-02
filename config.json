@@ -1,0 +1,49 @@
+{
+    "proxmox": {
+        "createCommand": "qm create",
+        "startCommand": "pct start",
+        "stopCommand": "pct stop",
+        "natScriptPath": "/etc/iptables/nat-"
+    },
+    "network": {
+        "startFromIP": 3,
+        "baseIP": "10.10.10."
+    },
+    "templates": [
+        {
+            "name": "Ubuntu 22.04",
+            "template": "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.gz"
+        },
+        {
+            "name": "Debian 11",
+            "template": "local:vztmpl/debian-11-standard_11-1_amd64.tar.gz"
+        },
+        {
+            "name": "CentOS 8",
+            "template": "local:vztmpl/centos-8-standard_8-2_amd64.tar.gz"
+        }
+    ],
+    "plans": {
+        "basic": {
+            "memory": 512,
+            "cores": 1,
+            "disk": 8
+        },
+        "standard": {
+            "memory": 1024,
+            "cores": 2,
+            "disk": 20
+        },
+        "premium": {
+            "memory": 2048,
+            "cores": 4,
+            "disk": 50
+        }
+    },
+    "ssh": {
+        "portRange": {
+            "min": 2000,
+            "max": 60000
+        }
+    }
+}
