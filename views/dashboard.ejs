@@ -10,6 +10,43 @@
 
 <div class="container mx-auto p-5">
     <h1 class="text-3xl font-bold">Your Containers</h1>
+
+    <!-- Button to show the form for creating a new container -->
+    <button id="createContainerBtn" class="bg-green-500 text-white py-2 px-4 rounded mt-4">Create New Container</button>
+
+    <!-- Container creation form (hidden by default) -->
+    <form id="createContainerForm" class="mt-4 bg-white p-4 border border-gray-300" style="display: none;" action="/containers" method="POST">
+        <h2 class="text-2xl mb-4">Create New Container</h2>
+        
+        <div class="mb-4">
+            <label for="vmid" class="block text-sm font-bold mb-2">VMID</label>
+            <input type="text" id="vmid" name="vmid" class="w-full p-2 border border-gray-300 rounded" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="name" class="block text-sm font-bold mb-2">Container Name</label>
+            <input type="text" id="name" name="name" class="w-full p-2 border border-gray-300 rounded" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="memory" class="block text-sm font-bold mb-2">Memory (MB)</label>
+            <input type="number" id="memory" name="memory" class="w-full p-2 border border-gray-300 rounded" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="cores" class="block text-sm font-bold mb-2">Cores</label>
+            <input type="number" id="cores" name="cores" class="w-full p-2 border border-gray-300 rounded" required>
+        </div>
+
+        <div class="mb-4">
+            <label for="template" class="block text-sm font-bold mb-2">OS Template</label>
+            <input type="text" id="template" name="template" class="w-full p-2 border border-gray-300 rounded" required>
+        </div>
+
+        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded">Create Container</button>
+    </form>
+
+    <!-- Table to display containers -->
     <table class="min-w-full mt-4 bg-white border border-gray-200">
         <thead>
             <tr>
@@ -40,6 +77,17 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    document.getElementById('createContainerBtn').addEventListener('click', function() {
+        var form = document.getElementById('createContainerForm');
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+        } else {
+            form.style.display = 'none';
+        }
+    });
+</script>
 
 </body>
 </html>

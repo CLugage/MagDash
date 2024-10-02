@@ -43,6 +43,7 @@ iptables -A FORWARD -p tcp -d 10.10.10.${ip} --dport ${port} -j ACCEPT
 };
 
 // Handle creating a new LXC container
+// Handle creating a new LXC container
 router.post('/', async (req, res) => {
     const { vmid, name, memory, cores, template } = req.body;
 
@@ -84,6 +85,7 @@ router.post('/', async (req, res) => {
         res.status(500).send('Error creating container');
     }
 });
+
 
 // Function to create a container on Proxmox with password
 const createContainerOnProxmox = async (containerData) => {
