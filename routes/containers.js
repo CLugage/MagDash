@@ -1,12 +1,27 @@
 const express = require('express');
 const Container = require('../models/Container');
-const axios = require('axios');
 const generateRandomPassword = require('../utils/generatePassword');
 const { exec } = require('child_process');
 
 const router = express.Router();
 
+// Predefined OS templates
+const osTemplates = [
+    {
+        name: 'Ubuntu 22.04',
+        template: 'local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.gz'
+    },
+    {
+        name: 'Debian 11',
+        template: 'local:vztmpl/debian-11-standard_11-1_amd64.tar.gz'
+    },
+    {
+        name: 'CentOS 8',
+        template: 'local:vztmpl/centos-8-standard_8-2_amd64.tar.gz'
+    }
+];
 
+// Function to get the next available VMID
 const getNextVMID = async () => {
     const containers = await Container.find();
     const usedVMIDs = containers.map(container => container.vmid);
@@ -17,7 +32,6 @@ const getNextVMID = async () => {
     }
     return nextVMID;
 };
-
 
 // Function to get the next available IP address
 const getNextIP = async () => {
@@ -32,26 +46,6 @@ const getNextIP = async () => {
     }
     return nextIP; // Return the next available IP address
 };
-
-// Function to get OS templates from Proxmox
-const getOSTemplates = async () => {
-    try {
-        const response = await axios.get(`PROXMOX_URL/nodes/YOUR_NODE/storage/local/content`, {
-            params: { content: 'vztmpl' },
-            auth: {
-                username: process.env.PROXMOX_USER,
-                password: process.env.PROXMOX_PASSWORD,
-            },
-            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
-        });
-        return response.data.data.map(template => template.volid);
-    } catch (error) {
-        console.error('Error fetching OS templates:', error);
-        return [];  // Return an empty array on error
-    }
-};
-
-
 
 // Function to generate and run NAT scripts
 const createAndRunNATScript = (container) => {
@@ -138,7 +132,6 @@ router.post('/', async (req, res) => {
     }
 });
 
-
 // Function to create a container on Proxmox with password
 const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
     const createCommand = `qm create ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
@@ -151,25 +144,16 @@ const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0,
     });
 };
 
-
 // Handle fetching containers for the logged-in user
-// Route to render the dashboard and pass OS templates
 router.get('/', async (req, res) => {
     try {
         const containers = await Container.find({ userId: req.user._id });
-        const templates = await getOSTemplates(); // Fetch OS templates
-        // Check if templates are fetched
-        if (!templates.length) {
-            console.error("No templates found");
-        }
-        res.render('dashboard', { containers, templates }); // Ensure templates are passed
+        res.render('dashboard', { containers, osTemplates }); // Pass predefined OS templates to the dashboard
     } catch (error) {
         console.error(error);
         res.status(500).send('Error fetching containers');
     }
 });
-
-
 
 // Function to update SSH configuration
 const updateSSHDConfig = async (container) => {

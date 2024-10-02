@@ -10,43 +10,27 @@
 
 <div class="container mx-auto p-5">
     <h1 class="text-3xl font-bold">Your Containers</h1>
+    <form action="/containers" method="POST" class="mb-4">
+        <label for="name" class="block text-sm font-bold mb-2">Container Name</label>
+        <input type="text" id="name" name="name" class="w-full p-2 border border-gray-300 rounded" required>
+        
+        <label for="memory" class="block text-sm font-bold mb-2">Memory (MB)</label>
+        <input type="number" id="memory" name="memory" class="w-full p-2 border border-gray-300 rounded" required>
 
-    <!-- Button to show the form for creating a new container -->
-    <button id="createContainerBtn" class="bg-green-500 text-white py-2 px-4 rounded mt-4">Create New Container</button>
+        <label for="cores" class="block text-sm font-bold mb-2">Cores</label>
+        <input type="number" id="cores" name="cores" class="w-full p-2 border border-gray-300 rounded" required>
 
-    <!-- Container creation form (hidden by default) -->
-    <form id="createContainerForm" class="mt-4 bg-white p-4 border border-gray-300" style="display: none;" action="/containers" method="POST">
-        <h2 class="text-2xl mb-4">Create New Container</h2>
+        <label for="diskspace" class="block text-sm font-bold mb-2">Disk Space (GB)</label>
+        <input type="number" id="diskspace" name="diskspace" class="w-full p-2 border border-gray-300 rounded" required>
 
-        <!-- Container Name Input -->
-        <div class="mb-4">
-            <label for="name" class="block text-sm font-bold mb-2">Container Name</label>
-            <input type="text" id="name" name="name" class="w-full p-2 border border-gray-300 rounded" required>
-        </div>
+        <label for="template" class="block text-sm font-bold mb-2">OS Template</label>
+        <select id="template" name="template" class="w-full p-2 border border-gray-300 rounded">
+            <option value="local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.gz">Ubuntu 22.04</option>
+            <option value="local:vztmpl/debian-11-standard_11-1_amd64.tar.gz">Debian 11</option>
+            <option value="local:vztmpl/centos-8-standard_8-2_amd64.tar.gz">CentOS 8</option>
+        </select>
 
-        <!-- OS Template Dropdown -->
-        <div class="mb-4">
-            <label for="template" class="block text-sm font-bold mb-2">OS Template</label>
-            <select id="template" name="template" class="w-full p-2 border border-gray-300 rounded">
-                <% templates.forEach(template => { %>
-                    <option value="<%= template %>"><%= template %></option>
-                <% }); %>
-            </select>
-        </div>
-
-        <!-- Plan Dropdown -->
-        <div class="mb-4">
-            <label for="plan" class="block text-sm font-bold mb-2">Select Plan</label>
-            <select id="plan" name="plan" class="w-full p-2 border border-gray-300 rounded" required>
-                <option value="" disabled selected>Select a plan</option>
-                <option value="basic">Basic - 1 core, 512 MB RAM, 8 GB Disk</option>
-                <option value="standard">Standard - 2 cores, 1 GB RAM, 20 GB Disk</option>
-                <option value="premium">Premium - 4 cores, 2 GB RAM, 50 GB Disk</option>
-            </select>
-        </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded">Create Container</button>
+        <button type="submit" class="bg-green-500 text-white py-2 px-4 rounded">Create Instance</button>
     </form>
 
     <table class="min-w-full mt-4 bg-white border border-gray-200">
@@ -79,12 +63,6 @@
         </tbody>
     </table>
 </div>
-
-<script>
-    document.getElementById('createContainerBtn').addEventListener('click', function () {
-        document.getElementById('createContainerForm').style.display = 'block';
-    });
-</script>
 
 </body>
 </html>
