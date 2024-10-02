@@ -56,13 +56,21 @@ const getNextIP = async () => {
 // Function to generate and run NAT scripts
 const createAndRunNATScript = (container) => {
     const { vmid, net0 } = container;
-    const ip = net0.split(',')[1].split('=')[1];
-    const port = net0.split(',')[2].split('=')[1];
+    const ipMatch = net0.match(/ip=([^,]+)/); // Extract the IP address
+    const portMatch = net0.match(/port=(\d+)/); // Extract the port
+
+    if (!ipMatch || !portMatch) {
+        console.error(`Invalid net0 format for container ${vmid}: ${net0}`);
+        return;
+    }
+
+    const ip = ipMatch[1]; // Correctly get the IP address
+    const port = portMatch[1]; // Correctly get the port number
 
     const natScript = `
 # NAT for container ${vmid}
-iptables -t nat -A PREROUTING -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j DNAT --to-destination ${config.network.baseIP}${ip}:${port}
-iptables -A FORWARD -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j ACCEPT
+iptables -t nat -A PREROUTING -p tcp -d ${ip} --dport ${port} -j DNAT --to-destination ${ip}:${port}
+iptables -A FORWARD -p tcp -d ${ip} --dport ${port} -j ACCEPT
 `;
 
     // Save NAT script to a file and execute it
@@ -74,7 +82,6 @@ iptables -A FORWARD -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j A
         }
     });
 };
-
 // Handle creating a new LXC container
 router.post('/', async (req, res) => {
     const { name, template, plan } = req.body;
