@@ -10,25 +10,12 @@
 
 <div class="container mx-auto p-5">
     <h1 class="text-3xl font-bold">Your Containers</h1>
-    
-    <% if (successMessage) { %>
-        <div class="mb-4 text-green-600">
-            <p><%= successMessage %></p>
-        </div>
-    <% } %>
-
-    <% if (errorMessage) { %>
-        <div class="mb-4 text-red-600">
-            <p><%= errorMessage %></p>
-        </div>
-    <% } %>
-
     <form action="/containers" method="POST" class="mb-4">
         <label for="name" class="block text-sm font-bold mb-2">Container Name</label>
         <input type="text" id="name" name="name" class="w-full p-2 border border-gray-300 rounded" required>
         
         <label for="template" class="block text-sm font-bold mb-2">OS Template</label>
-        <select id="template" name="template" class="w-full p-2 border border-gray-300 rounded" required>
+        <select id="template" name="template" class="w-full p-2 border border-gray-300 rounded">
             <option value="local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.gz">Ubuntu 22.04</option>
             <option value="local:vztmpl/debian-11-standard_11-1_amd64.tar.gz">Debian 11</option>
             <option value="local:vztmpl/centos-8-standard_8-2_amd64.tar.gz">CentOS 8</option>
