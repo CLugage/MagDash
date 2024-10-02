@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
 
 // Function to create a container on Proxmox with password
 const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
-    const createCommand = `${config.proxmox.createCommand} ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
+    const createCommand = `${config.proxmox.createCommand} ${vmid} --hostname ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
     exec(createCommand, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error creating container: ${stderr}`);
