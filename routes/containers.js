@@ -8,13 +8,7 @@ const router = express.Router();
 
 // Extract templates and plans from config
 const osTemplates = config.templates;
-//const plans = config.plans;
-
-const plans = {
-    basic: { memory: 512, cores: 1, disk: 10 },
-    standard: { memory: 1024, cores: 2, disk: 20 },
-    premium: { memory: 2048, cores: 4, disk: 40 },
-};
+const plans = config.plans;
 
 
 // Function to get the next available VMID
