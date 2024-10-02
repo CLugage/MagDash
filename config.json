@@ -1,6 +1,6 @@
 {
     "proxmox": {
-        "createCommand": "qm create",
+        "createCommand": "pct create",
         "startCommand": "pct start",
         "stopCommand": "pct stop",
         "natScriptPath": "/etc/iptables/nat-"
