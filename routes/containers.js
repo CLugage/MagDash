@@ -3,6 +3,7 @@ const Container = require('../models/Container');
 const generateRandomPassword = require('../utils/generatePassword');
 const axios = require('axios'); // Use axios to make HTTP requests to the Proxmox API
 const config = require('../config.json'); // Import config.json
+const { exec } = require('child_process'); // For executing NAT scripts
 
 const router = express.Router();
 
@@ -10,14 +11,21 @@ const router = express.Router();
 const osTemplates = config.templates;
 const plans = config.plans;
 
-// Set up Axios instance for Proxmox API
-const proxmoxApi = axios.create({
-    baseURL: `https://${config.proxmox.host}:8006/api2/json`,
-    headers: {
-        'Authorization': `PVEAPIToken=${config.proxmox.apiToken}`, // Use your API token for authorization
-        'Content-Type': 'application/json',
-    },
-});
+// Function to authenticate with Proxmox API
+const authenticateWithProxmox = async () => {
+    try {
+        const response = await axios.post(`https://${config.proxmox.host}:8006/api2/json/access/ticket`, {
+            username: config.proxmox.username,
+            password: config.proxmox.password,
+        }, {
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }), // Disable SSL verification (optional)
+        });
+        return response.data.data;
+    } catch (error) {
+        console.error('Proxmox authentication failed:', error);
+        throw new Error('Authentication failed');
+    }
+};
 
 // Function to get the next available VMID
 const getNextVMID = async () => {
@@ -71,6 +79,14 @@ iptables -A FORWARD -p tcp -d ${config.network.baseIP}${ip} --dport ${port} -j A
 router.post('/', async (req, res) => {
     const { name, template, plan } = req.body;
 
+    // Get Proxmox authentication ticket
+    let proxmoxAuth;
+    try {
+        proxmoxAuth = await authenticateWithProxmox();
+    } catch (error) {
+        return res.status(500).send('Error authenticating with Proxmox');
+    }
+
     // Get next VMID
     const vmid = await getNextVMID();
 
@@ -104,9 +120,9 @@ router.post('/', async (req, res) => {
 
     try {
         await newContainer.save(); // Save container to MongoDB
-        await createContainerOnProxmox({ vmid, name, memory, cores, disk, net0, template, containerPassword });
+        await createContainerOnProxmox({ vmid, name, memory, cores, disk, net0, template, containerPassword, proxmoxAuth });
         createAndRunNATScript(newContainer);
-        await updateSSHDConfig(newContainer);
+        await updateSSHDConfig(newContainer, proxmoxAuth);
         res.redirect('/dashboard');
     } catch (error) {
         console.error(error);
@@ -115,27 +131,31 @@ router.post('/', async (req, res) => {
 });
 
 // Function to create a container on Proxmox
-const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
+const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword, proxmoxAuth }) => {
+    const { ticket, CSRFPreventionToken } = proxmoxAuth;
+
     const createCommand = {
         vmid,
-        name,
+        hostname: name,
+        ostemplate: template,
         memory,
         cores,
         net0,
-        ostemplate: template,
         rootfs: `local:${disk}`,
         password: containerPassword // Pass password directly
     };
 
     try {
         // Create the container using Proxmox API
-        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc`, createCommand);
+        await axios.post(`https://${config.proxmox.host}:8006/api2/json/nodes/${config.proxmox.node}/lxc`, createCommand, {
+            headers: {
+                'Authorization': `PVEAPIToken=${ticket}`,
+                'CSRFPreventionToken': CSRFPreventionToken,
+                'Content-Type': 'application/json',
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }), // Disable SSL verification (optional)
+        });
         console.log(`Container created: ${vmid}`);
-
-        // Set the password using pct set (if needed, but we already set it during creation)
-        // const passwordCommand = `pct set ${vmid} --password ${containerPassword}`;
-        // await execAsync(passwordCommand);
-        console.log(`Password set for container ${vmid}`);
     } catch (error) {
         console.error(`Error creating container: ${error.response ? error.response.data : error.message}`);
     }
@@ -160,20 +180,22 @@ router.get('/', async (req, res) => {
 });
 
 // Function to update SSH configuration
-const updateSSHDConfig = async (container) => {
+const updateSSHDConfig = async (container, proxmoxAuth) => {
     const { vmid, password } = container;
 
     try {
-        const command = {
-            password,
-            sshd: {
-                PermitRootLogin: 'yes' // Enable root login
-            }
-        };
+        const { ticket, CSRFPreventionToken } = proxmoxAuth;
 
         // Update the SSH configuration via pct exec (if required)
-        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${vmid}/exec`, {
-            command: `bash -c "sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config && systemctl restart sshd"`,
+        await axios.post(`https://${config.proxmox.host}:8006/api2/json/nodes/${config.proxmox.node}/lxc/${vmid}/exec`, {
+            command: `bash -c "echo '${password}' | passwd root --stdin && sed -i 's/#PermitRootLogin/PermitRootLogin/' /etc/ssh/sshd_config && systemctl restart sshd"`,
+        }, {
+            headers: {
+                'Authorization': `PVEAPIToken=${ticket}`,
+                'CSRFPreventionToken': CSRFPreventionToken,
+                'Content-Type': 'application/json',
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }), // Disable SSL verification (optional)
         });
 
         console.log(`SSHD config updated for container ${vmid}`);
@@ -187,7 +209,16 @@ router.post('/:id/start', async (req, res) => {
     const { id } = req.params;
 
     try {
-        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${id}/status/start`);
+        const proxmoxAuth = await authenticateWithProxmox(); // Authenticate with Proxmox
+
+        await axios.post(`https://${config.proxmox.host}:8006/api2/json/nodes/${config.proxmox.node}/lxc/${id}/status/start`, {}, {
+            headers: {
+                'Authorization': `PVEAPIToken=${proxmoxAuth.ticket}`,
+                'CSRFPreventionToken': proxmoxAuth.CSRFPreventionToken,
+                'Content-Type': 'application/json',
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }), // Disable SSL verification (optional)
+        });
         console.log(`Container ${id} started`);
         res.redirect('/dashboard');
     } catch (error) {
@@ -201,7 +232,16 @@ router.post('/:id/stop', async (req, res) => {
     const { id } = req.params;
 
     try {
-        await proxmoxApi.post(`/nodes/${config.proxmox.node}/lxc/${id}/status/stop`);
+        const proxmoxAuth = await authenticateWithProxmox(); // Authenticate with Proxmox
+
+        await axios.post(`https://${config.proxmox.host}:8006/api2/json/nodes/${config.proxmox.node}/lxc/${id}/status/stop`, {}, {
+            headers: {
+                'Authorization': `PVEAPIToken=${proxmoxAuth.ticket}`,
+                'CSRFPreventionToken': proxmoxAuth.CSRFPreventionToken,
+                'Content-Type': 'application/json',
+            },
+            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }), // Disable SSL verification (optional)
+        });
         console.log(`Container ${id} stopped`);
         res.redirect('/dashboard');
     } catch (error) {
