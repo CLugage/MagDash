@@ -107,16 +107,25 @@ router.post('/', async (req, res) => {
 });
 
 // Function to create a container on Proxmox with password
+
+// Function to create a container on Proxmox
 const createContainerOnProxmox = async ({ vmid, name, memory, cores, disk, net0, template, containerPassword }) => {
-    const createCommand = `${config.proxmox.createCommand} ${vmid} --hostname ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk} --password ${containerPassword}`;
-    exec(createCommand, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error creating container: ${stderr}`);
-            return;
-        }
-        console.log(`Container created: ${stdout}`);
-    });
+    const createCommand = `${config.proxmox.createCommand} ${vmid} --name ${name} --memory ${memory} --cores ${cores} --net0 ${net0} --ostemplate ${template} --rootfs local:${disk}`;
+    
+    try {
+        // Create the container without the password
+        const result = await execAsync(createCommand);
+        console.log(`Container created: ${result}`);
+
+        // Set the password using pct set
+        const passwordCommand = `pct set ${vmid} --password ${containerPassword}`;
+        await execAsync(passwordCommand);
+        console.log(`Password set for container ${vmid}`);
+    } catch (error) {
+        console.error(`Error creating container: ${error}`);
+    }
 };
+
 // Handle fetching containers for the logged-in user
 router.get('/', async (req, res) => {
     try {
