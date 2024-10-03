@@ -1,3 +1,4 @@
+require(dotenv).config()
 const fs = require('fs');
 const shell = require('shelljs');
 
@@ -43,7 +44,7 @@ async function main(name, proxID, ip, sshPort, os) {
         await shell.exec(`pct exec ${proxID} sh -- -c "service sshd start"`);
 
         // MOTD
-        await shell.exec(`pct exec ${proxID} sh -- -c "echo '\tFree VPS by ErtixNodes.' > /etc/motd"`);
+        await shell.exec(`pct exec ${proxID} sh -- -c "echo '\tFree VPS by Dekos.' > /etc/motd"`);
 
         // SHELL
         await shell.exec(`pct exec ${proxID} sh -- -c "bash <(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"`);
@@ -61,7 +62,7 @@ async function main(name, proxID, ip, sshPort, os) {
         await shell.exec(`pct exec ${proxID} bash -- -c "service sshd restart"`);
 
         // MOTD
-        await shell.exec(`pct exec ${proxID} bash -- -c "echo '\tFree VPS by ErtixNodes.' > /etc/motd"`);
+        await shell.exec(`pct exec ${proxID} bash -- -c "echo '\tFree VPS by Dekos.' > /etc/motd"`);
 
         // SHELL
         await shell.exec(`pct exec ${proxID} bash -- -c "bash <(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"`);
@@ -95,7 +96,7 @@ function getCreateCMD(path, proxID, data) {
     cmd += `--hostname=${data.os}${proxID} `;
     cmd += `--memory=512 `;
     cmd += `--cmode=shell `;
-    cmd += `--net0 name=eth0,bridge=vmbr0,firewall=1,gw=10.6.0.1,ip=${data.ip}/16,rate=3 `;
+    cmd += `--net0 name=eth0,bridge=vmbr1,firewall=1,gw=10.10.10.1,ip=${data.ip}/24,rate=3 `;
     cmd += `--ostype=${data.os} `;
     cmd += `--password ${data.password} `;
     cmd += `--start=1 `;
@@ -107,15 +108,34 @@ function getCreateCMD(path, proxID, data) {
     return cmd;
 }
 
+
 async function addForward(port, intPort, ip) {
+    console.log(`Adding port forwarding: ${port} -> ${ip}:${intPort}`);
 
-    console.log(`Adding :${port} -> ${ip}:${intPort}`);
-    fs.writeFileSync(`/port/${port}.sh`, `iptables -t nat -A PREROUTING -p TCP --dport ${port} -j DNAT --to-destination ${ip}:${intPort}`);
+    // Ensure the directory for port scripts exists
+    const natPreDownPath = '/root/nat-pre-down.sh';
+    const natPostUpPath = '/root/nat-post-up.sh'; 
 
-    var a = await shell.exec(`bash /port/${port}.sh`);
+    // Add NAT rule for the port
+    const preDownContent = `iptables -t nat -D PREROUTING -i vmbr0 -p tcp --dport ${port} -j DNAT --to ${ip}:${intPort}\n`;
+    const postUpContent = `iptables -t nat -A PREROUTING -i vmbr0 -p tcp --dport ${port} -j DNAT --to ${ip}:${intPort}\n`;
 
-    return a;
+    // Append rules to the NAT scripts
+    fs.appendFileSync(natPreDownPath, preDownContent);
+    fs.appendFileSync(natPostUpPath, postUpContent);
+
+    // Execute the nat-post-up.sh script to apply changes immediately
+    const result = await shell.exec(`bash ${natPostUpPath}`);
+
+    if (result.stderr) {
+        console.error(`Error executing nat-post-up.sh: ${result.stderr}`);
+    } else {
+        console.log(`Executed nat-post-up.sh for port ${port}`);
+    }
+
+    console.log(`Added port forwarding rule for port ${port}`);
 }
+
 
 main(name, proxID, ip, sshPort, os).then(() => {
     db.mongoose.connection.close();

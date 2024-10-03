@@ -1,3 +1,4 @@
+require('dontenv').config()
 const express = require('express');
 const DiscordOauth2 = require("discord-oauth2");
 const fs = require('fs');
@@ -52,8 +53,8 @@ app.get('/callback', async (req, res) => {
                 });
                 await userInDB.save();
             } catch (e) {
-                console.log('ERROR creating Pterodactyl user', e);
-                return error(res, 500, 'Failed to create Pterodactyl user');
+                console.log('ERROR creating  user', e);
+                return error(res, 500, 'Failed to create  user');
             }
         }
 
